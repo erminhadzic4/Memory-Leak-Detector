@@ -36,6 +36,10 @@ int main()
 {
     MemoryLeakDetector::start();
 
+    int* p = DEBUG_NEW int;
+    double* q = DEBUG_NEW double[10];
 
     MemoryLeakDetector::end();
+    
+    return 0;
 }
