@@ -1,18 +1,41 @@
 #include <iostream>
-#include <map>
-#include <string>
+#include <cstdlib>
+#include <cstring>
 
-std::map<void*, std::pair<std::string, int>> alokacije;
-size_t ukupno_alocirano = 0, ukupno_dealocirano = 0;
+#define DEBUG_NEW new(__FILE__, __LINE__)
 
-void* operator new(size_t vel, const char* file, int linije) {
-	void* pok = malloc(vel);
-	alokacije[pok] = std::make_pair(file, linije);
-	ukupno_alocirano += vel;
-	std::cout << "Alocirano " << vel << " bajta na adresi " << pok << " u fajlu " << file << " na liniji " << linije << std::endl;
-	return pok;
+void* operator new(std::size_t size, const char* file, int line)
+{
+    void* ptr = std::malloc(size);
+    std::cout << "Allocating " << size << " bytes at " << ptr << " in " << file << " line " << line << std::endl;
+    return ptr;
 }
 
-int main() {
-	return 0;
+void operator delete(void* ptr) noexcept
+{
+    std::free(ptr);
+}
+
+class MemoryLeakDetector
+{
+public:
+    static void start()
+    {
+        std::cout << "Memory Leak Detection Started" << std::endl;
+        std::cout << "-----------------------------" << std::endl;
+    }
+
+    static void end()
+    {
+        std::cout << "-----------------------------" << std::endl;
+        std::cout << "Memory Leak Detection Ended" << std::endl;
+    }
+};
+
+int main()
+{
+    MemoryLeakDetector::start();
+
+
+    MemoryLeakDetector::end();
 }
