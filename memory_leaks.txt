@@ -1,2 +1,0 @@
-Allocating 4 bytes at 000002493A6E1000 in C:\Users\fatal\OneDrive\Desktop\ETF-RS-1-GODINA-1-SEMESTAR\GitHub repozitoriji\MemoryLeakDetector\MemoryLeakDetector\MemoryLeakDetector.cpp line 66
-Allocating 80 bytes at 000002493A6C5500 in C:\Users\fatal\OneDrive\Desktop\ETF-RS-1-GODINA-1-SEMESTAR\GitHub repozitoriji\MemoryLeakDetector\MemoryLeakDetector\MemoryLeakDetector.cpp line 67
