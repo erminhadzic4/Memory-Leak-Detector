@@ -5,8 +5,10 @@
 #include <vector>
 
 bool write_to_file = false;
+bool include_file = true;
 #define WRITE_TO_FILE(enable) write_to_file = enable;
 #define DEBUG_NEW new(__FILE__, __LINE__)
+#define INCLUDE_THE_FILE(enable) include_file = enable;
 
 class MemoryLeakDetector
 {
@@ -89,12 +91,12 @@ std::vector<void*> MemoryLeakDetector::allocated_pointers;
 void* operator new(std::size_t size, const char* file, int line)
 {
     void* ptr = std::malloc(size);
-    std::cout << "Allocating " << size << " bytes at " << ptr << " in " << file << " line " << line << std::endl;
+    std::cout << "Allocating " << size << " bytes at" << (include_file ? file : "") << " line " << line << " (" << ptr << ")" << std::endl;
 
     if (write_to_file)
     {
         std::ofstream out("memory_leaks.txt", std::ios::app);
-        out << "Allocating " << size << " bytes at " << ptr << " in " << file << " line " << line << std::endl;
+        out << "Allocating " << size << " bytes at " << (include_file ? file : "") << " line " << line << " (" << ptr << ")" << std::endl;
     }
 
     MemoryLeakDetector::add(ptr);
@@ -115,6 +117,7 @@ void operator delete(void* ptr) noexcept
 int main()
 {
     MemoryLeakDetector::start();
+    INCLUDE_THE_FILE(false);
 
     //WRITE_TO_FILE(true);
 
