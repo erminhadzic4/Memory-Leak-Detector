@@ -8,6 +8,10 @@ bool write_to_file = false;
 bool include_file = true;
 bool include_line = true;
 
+int total_allocations = 0;
+int total_deallocations = 0;
+int total_allocated_bytes = 0;
+
 #define WRITE_TO_FILE(enable) write_to_file = enable;
 #define INCLUDE_THE_FILE(enable) include_file = enable;
 #define INCLUDE_THE_LINE(enable) include_line = enable;
@@ -108,12 +112,18 @@ public:
     {
         std::cout << "-----------------------------" << std::endl;
         std::cout << "Memory Leak Detection Ended" << std::endl;
+        std::cout << "Total allocations: " << total_allocations << std::endl;
+        std::cout << "Total deallocations: " << total_deallocations << std::endl;
+        std::cout << "Total allocated bytes: " << total_allocated_bytes << std::endl;
 
         if (write_to_file)
         {
             std::ofstream out("memory_leaks.txt", std::ios::app);
             out << "-----------------------------" << std::endl;
             out << "Memory Leak Detection Ended" << std::endl;
+            out << "Total allocations: " << total_allocations << std::endl;
+            out << "Total deallocations: " << total_deallocations << std::endl;
+            out << "Total allocated bytes: " << total_allocated_bytes << std::endl;
         }
 
         check();
@@ -126,6 +136,8 @@ std::vector<MemoryAllocationInfo> MemoryLeakDetector::allocations;
 void* operator new(std::size_t size, const char* file, int line)
 {
     void* ptr = std::malloc(size);
+    total_allocations++;
+    total_allocated_bytes += size;
 
     if (include_file && include_line)
     {
@@ -175,7 +187,7 @@ void operator delete(void* ptr) noexcept
 {
     // Remove allocation info from global data structure
     MemoryLeakDetector::remove_allocation(ptr);
-
+    total_deallocations++;
     std::free(ptr);
 }
 
