@@ -3,14 +3,13 @@
 #include <cstring>
 #include <fstream>
 #include <vector>
+#include <algorithm>
 
 bool write_to_file = false;
 bool include_file = false;
 bool include_line = false;
 bool include_total_allocs = false;
 
-int total_allocations = 0;
-int total_deallocations = 0;
 int total_allocated_bytes = 0;
 
 #define WRITE_TO_FILE(enable) write_to_file = enable;
@@ -19,36 +18,44 @@ int total_allocated_bytes = 0;
 #define INCLUDE_TOTAL_ALLOCS(enable) include_total_allocs = enable;
 #define DEBUG_NEW new(__FILE__, include_line ? __LINE__ : 0)
 
-// Class to store memory allocation information
 class MemoryAllocationInfo {
 public:
     void* ptr;
     const char* file;
     int line;
-
-    MemoryAllocationInfo(void* p, const char* f, int l) : ptr(p), file(f), line(l) {}
+    bool freed;
+    MemoryAllocationInfo(const char* f, int l) : ptr(nullptr), file(f), line(l), freed(false) {}
+    MemoryAllocationInfo(void *ptr, const char* f, int l, bool fr) : ptr(ptr), file(f), line(l), freed(fr) {}
 };
 
 class MemoryLeakDetector
 {
 private:
     static std::vector<MemoryAllocationInfo> allocations;
-
 public:
     static void add_allocation(void* ptr, const char* file, int line)
     {
-        allocations.emplace_back(ptr, file, line);
+        allocations.emplace_back(ptr, file, line, false);
     }
 
-    static void remove_allocation(void* ptr)
+    static int remove_allocation(void* ptr)
     {
         auto it = std::find_if(allocations.begin(), allocations.end(), [ptr](const MemoryAllocationInfo& info) {
             return info.ptr == ptr;
             });
 
         if (it != allocations.end()) {
-            allocations.erase(it);
+            auto& info = *it;
+            if (info.freed) {
+                std::cout << "Double free detected at " << ptr << " in " << info.file << " line " << info.line << std::endl;
+                return -1;
+            }
+            else {
+                info.freed = true;
+            }
         }
+
+        return 1;
     }
 
     static void clear()
@@ -59,35 +66,34 @@ public:
 
     static void check()
     {
-        if (!allocations.empty())
-        {
+        bool leak = false;
+        for (auto allocation : allocations)
+            if (allocation.freed == false)
+                leak = true;
+        if (leak) {
             std::cout << "Memory leaks detected!" << std::endl;
-            for (const auto& info : allocations)
-            {
-                std::cout << "Memory leak at " << info.ptr;
-                if (include_file)
-                {
-                    std::cout << " in " << info.file;
-                }
-                if (include_line)
-                {
-                    std::cout << " at line " << info.line;
-                }
-                std::cout << std::endl;
+            for (const auto& info : allocations) {
+                if (!info.freed) {
+                    std::cout << "Memory leak at " << info.ptr;
+                    if (include_file) {
+                        std::cout << " in " << info.file;
+                    }
+                    if (include_line) {
+                        std::cout << " at line " << info.line;
+                    }
+                    std::cout << std::endl;
 
-                if (write_to_file)
-                {
-                    std::ofstream out("memory_leaks.txt", std::ios::app);
-                    out << "Memory leak at " << info.ptr;
-                    if (include_file)
-                    {
-                        out << " in " << info.file;
+                    if (write_to_file) {
+                        std::ofstream out("memory_leaks.txt", std::ios::app);
+                        out << "Memory leak at " << info.ptr;
+                        if (include_file) {
+                            out << " in " << info.file;
+                        }
+                        if (include_line) {
+                            out << " at line " << info.line;
+                        }
+                        out << std::endl;
                     }
-                    if (include_line)
-                    {
-                        out << " at line " << info.line;
-                    }
-                    out << std::endl;
                 }
             }
             clear();
@@ -114,18 +120,18 @@ public:
     {
         std::cout << "-----------------------------" << std::endl;
         std::cout << "Memory Leak Detection Ended" << std::endl;
-        std::cout << "Total allocations: " << total_allocations << std::endl;
-        std::cout << "Total deallocations: " << total_deallocations << std::endl;
-        std::cout << "Total allocated bytes: " << total_allocated_bytes << std::endl;
+        if (include_total_allocs) {
+            std::cout << "Total allocated bytes: " << total_allocated_bytes << std::endl;
+        }
 
         if (write_to_file)
         {
             std::ofstream out("memory_leaks.txt", std::ios::app);
             out << "-----------------------------" << std::endl;
             out << "Memory Leak Detection Ended" << std::endl;
-            out << "Total allocations: " << total_allocations << std::endl;
-            out << "Total deallocations: " << total_deallocations << std::endl;
-            out << "Total allocated bytes: " << total_allocated_bytes << std::endl;
+            if (include_total_allocs) {
+                out << "Total allocated bytes: " << total_allocated_bytes << std::endl;
+            }
         }
 
         check();
@@ -138,7 +144,6 @@ std::vector<MemoryAllocationInfo> MemoryLeakDetector::allocations;
 void* operator new(std::size_t size, const char* file, int line)
 {
     void* ptr = std::malloc(size);
-    total_allocations++;
     total_allocated_bytes += size;
 
     if (include_file && include_line)
@@ -183,14 +188,12 @@ void* operator new(std::size_t size, const char* file, int line)
 
     return ptr;
 }
-
-// Operator overloading to track memory deallocation
 void operator delete(void* ptr) noexcept
 {
-    // Remove allocation info from global data structure
-    MemoryLeakDetector::remove_allocation(ptr);
-    total_deallocations++;
-    std::free(ptr);
+    int freed = MemoryLeakDetector::remove_allocation(ptr);
+    if (!freed)
+        std::free(ptr);
+
 }
 
 #define new DEBUG_NEW
@@ -198,13 +201,15 @@ void operator delete(void* ptr) noexcept
 int main()
 {
     MemoryLeakDetector::start();
-    INCLUDE_FILE(false);
-    INCLUDE_LINE(true);
+    //INCLUDE_FILE(false);
+    //INCLUDE_LINE(true);
+    INCLUDE_TOTAL_ALLOCS(true);
 
     //WRITE_TO_FILE(true);
 
     int* ptr1 = new int;
-    int* ptr2 = new int[10];
+    delete ptr1;
+    //int* ptr2 = new int[10];
 
     //WRITE_TO_FILE(false);
 
