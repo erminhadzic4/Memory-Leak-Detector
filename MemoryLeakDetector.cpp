@@ -5,16 +5,18 @@
 #include <vector>
 
 bool write_to_file = false;
-bool include_file = true;
-bool include_line = true;
+bool include_file = false;
+bool include_line = false;
+bool include_total_allocs = false;
 
 int total_allocations = 0;
 int total_deallocations = 0;
 int total_allocated_bytes = 0;
 
 #define WRITE_TO_FILE(enable) write_to_file = enable;
-#define INCLUDE_THE_FILE(enable) include_file = enable;
-#define INCLUDE_THE_LINE(enable) include_line = enable;
+#define INCLUDE_FILE(enable) include_file = enable;
+#define INCLUDE_LINE(enable) include_line = enable;
+#define INCLUDE_TOTAL_ALLOCS(enable) include_total_allocs = enable;
 #define DEBUG_NEW new(__FILE__, include_line ? __LINE__ : 0)
 
 // Class to store memory allocation information
@@ -196,8 +198,8 @@ void operator delete(void* ptr) noexcept
 int main()
 {
     MemoryLeakDetector::start();
-    INCLUDE_THE_FILE(false);
-    INCLUDE_THE_LINE(true);
+    INCLUDE_FILE(false);
+    INCLUDE_LINE(true);
 
     //WRITE_TO_FILE(true);
 
