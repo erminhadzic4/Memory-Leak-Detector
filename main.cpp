@@ -6,16 +6,14 @@
 #include <algorithm>
 
 #include "MemoryLeakDetector.h"
-#include "Macros.h"
 
 int main()
 {
     MemoryLeakDetector::start();
-    //INCLUDE_FILE(false);
-    //INCLUDE_LINE(true);
-    INCLUDE_TOTAL_ALLOCS(true);
-
-    WRITE_TO_FILE(true);
+    INCLUDE_FILE(false);
+    INCLUDE_LINE(false);
+    INCLUDE_TOTAL_ALLOCS(false);
+    WRITE_TO_FILE(false);
 
     int* ptr1 = new int;
     //delete ptr1;
