@@ -33,6 +33,7 @@ class MemoryLeakDetector
 private:
     static std::vector<MemoryAllocationInfo> allocations;
 public:
+    friend void operator delete[](void* ptr) noexcept;
     static void add_allocation(void* ptr, const char* file, int line)
     {
         allocations.emplace_back(ptr, file, line, false);
@@ -52,6 +53,7 @@ public:
             }
             else {
                 info.freed = true;
+                operator delete[](ptr); 
             }
         }
 
@@ -141,6 +143,45 @@ public:
 
 std::vector<MemoryAllocationInfo> MemoryLeakDetector::allocations;
 
+void operator delete[](void* ptr) noexcept
+{
+    const char* file = nullptr;
+    int line = 0;
+
+    auto it = std::find_if(MemoryLeakDetector::allocations.begin(), MemoryLeakDetector::allocations.end(),
+        [ptr](const MemoryAllocationInfo& info) { return info.ptr == ptr; });
+
+    if (it != MemoryLeakDetector::allocations.end()) {
+        auto& info = *it;
+        file = info.file;
+        line = info.line;
+        info.freed = true;
+        total_allocated_bytes -= _msize(ptr);
+        std::free(ptr);
+    }
+    else {
+        std::cout << "Error: invalid pointer passed to operator delete[]" << std::endl;
+    }
+
+    if (include_file && include_line)
+    {
+        std::cout << "Deallocating memory at " << ptr << " in " << file << " line " << line << std::endl;
+    }
+    else if (include_file)
+    {
+        std::cout << "Deallocating memory at " << ptr << " in " << file << std::endl;
+    }
+    else if (include_line)
+    {
+        std::cout << "Deallocating memory at " << ptr << " line " << line << std::endl;
+    }
+    else
+    {
+        std::cout << "Deallocating memory at " << ptr << std::endl;
+    }
+}
+
+
 void* operator new(std::size_t size, const char* file, int line)
 {
     void* ptr = std::malloc(size);
@@ -188,6 +229,7 @@ void* operator new(std::size_t size, const char* file, int line)
 
     return ptr;
 }
+
 void operator delete(void* ptr) noexcept
 {
     int freed = MemoryLeakDetector::remove_allocation(ptr);
